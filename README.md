@@ -62,3 +62,54 @@ streamlit run app.py
    - **Whisper Lokal**: Untuk pemrosesan offline tanpa internet.
 4. **Klik "Mulai Transkripsi"**: Sistem akan mengekstrak audio, memproses transkrip, dan langsung menyimpan hasilnya di folder `transkrip/`.
 5. **Koreksi & Unduh**: Pratinjau teks dapat diedit langsung, dan berkas Word/TXT dapat diunduh atau dibuka langsung melalui tombol "Buka Folder Penyimpanan".
+
+---
+
+## Suite Pengujian (Testing Suite)
+
+Tersedia rangkaian pengujian otomatis lengkap untuk memastikan keandalan sebelum rilis (*release*):
+
+- **Unit Testing** (`tests/test_unit.py`): Memeriksa 20 fungsi terisolasi (ekspor docx, format txt, sanitasi folder, kalkulasi SUS, utilitas waktu).
+- **Functional Testing** (`tests/test_functional.py`): Memeriksa 5 alur fitur (ekspor multibahasa Arab/Hanzi/Jerman/Spanyol, penyiapan media, siklus hidup kuesioner SUS).
+- **Integration Testing** (`tests/test_integration.py`): Memeriksa pipeline transkripsi audio nyata dari input WAV sintetis hingga penyimpanan fisik DOCX & TXT di disk.
+- **Runtime Benchmark** (`tests/test_benchmark_runtime.py`): Mengukur performa komputasi Real-Time Factor (RTF), Throughput, dan rasio percepatan GPU RTX vs CPU.
+
+### Cara Menjalankan Pengujian:
+```bat
+jalankan_testing.bat
+```
+Atau melalui terminal:
+```powershell
+.\venv\Scripts\python.exe tests\run_all_tests.py
+.\venv\Scripts\python.exe tests\test_benchmark_runtime.py
+```
+
+---
+
+## Evaluasi Usability Pengguna (SUS - System Usability Scale)
+
+Aplikasi telah dilengkapi formulir kuesioner **System Usability Scale (SUS)** standar John Brooke (1986):
+1. Buka tab **"Evaluasi Usability (Form SUS)"** di antarmuka web.
+2. Responden mengisi 10 butir pertanyaan skala Likert (1 - 5).
+3. Skor otomatis dihitung seketika (0 - 100) lengkap dengan *Grade Usability* (A/B/C/F), *Adjective Rating* (Excellent/Good/OK/Poor), dan *Acceptability*.
+4. Data tersimpan permanen di `evaluasi_sus/hasil_evaluasi_sus.csv` dan dapat diunduh langsung untuk lampiran laporan riset.
+5. Tersedia dokumen kuesioner siap cetak di `evaluasi_sus/KUESIONER_SUS.md`.
+
+---
+
+## Panduan Deployment GPU (Apakah Harus RTX 4060?)
+
+- **Apakah harus GPU yang sama persis (RTX 4060)?**  
+  **TIDAK HARUS**. Pustaka `ctranslate2` dan runtime NVIDIA CUDA kompatibel dengan **seluruh kartu grafis NVIDIA** yang mendukung CUDA Compute Capability >= 5.0.
+- **Pilihan GPU yang Didukung**:
+  - **PC / Laptop Lokal**: GTX 1650/1660, RTX 2060, RTX 3050, RTX 3060, RTX 4060, RTX 4070, RTX 4080, RTX 4090.
+  - **Cloud Server (RunPod, Vast.ai, AWS, GCP)**: NVIDIA T4 (16GB VRAM - paling ekonomis ~$0.20/jam), NVIDIA A10G (24GB), L4, atau A100.
+- **Kebutuhan VRAM Model Whisper**:
+  - `tiny`: ~1 GB VRAM
+  - `base`: ~1.5 GB VRAM
+  - `small`: ~2.5 GB VRAM
+  - `medium`: ~5 GB VRAM (RTX 4060 8GB sangat optimal)
+  - `large-v3`: ~10 GB VRAM
+- **Jika Deploy di Layanan Cloud Gratis (Streamlit Cloud / Render / Vercel)**:
+  - Layanan gratis umumnya hanya menyediakan CPU tanpa GPU.
+  - **Solusi**: Pengguna cukup memilih metode **Google Gemini API** yang tetap gratis, super cepat (1–2 menit), diproses di cloud Google, dan tidak memerlukan sewa server GPU berbayar.
