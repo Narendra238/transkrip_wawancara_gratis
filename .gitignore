@@ -7,3 +7,4 @@ uploads/
 outputs/
 transkrip/
 .streamlit/
+api_key.txt
