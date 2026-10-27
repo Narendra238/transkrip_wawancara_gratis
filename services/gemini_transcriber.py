@@ -31,17 +31,29 @@ def get_gemini_client(api_key: str = None) -> genai.Client:
 
 PREFERRED_MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash"]
 
+SUPPORTED_LANGUAGES = {
+    "id": "Bahasa Indonesia",
+    "en": "Bahasa Inggris (English)",
+    "ar": "Bahasa Arab (العربية)",
+    "zh": "Bahasa Mandarin (中文 / Hanzi)",
+    "de": "Bahasa Jerman (Deutsch)",
+    "es": "Bahasa Spanyol (Español)",
+    "auto": "Deteksi Otomatis (Auto-Detect)"
+}
+
 def transcribe_with_gemini(
     audio_path: str,
     api_key: str = None,
     title: str = "Wawancara",
+    language_code: str = "id",
     status_callback=None
 ) -> str:
     """
     Mentranskripsikan berkas audio menggunakan Gemini File API (Google AI Studio - Free tier).
-    Mendukung rekaman panjang hingga berjam-jam.
+    Mendukung rekaman panjang hingga berjam-jam dan multibahasa secara verbatim.
     """
     client = get_gemini_client(api_key)
+    lang_desc = SUPPORTED_LANGUAGES.get(language_code, "Bahasa Indonesia")
 
     if status_callback:
         status_callback("Mengunggah berkas audio ke Google Gemini...")
@@ -63,16 +75,31 @@ def transcribe_with_gemini(
         raise RuntimeError("Berkas audio gagal diproses oleh server Gemini.")
 
     if status_callback:
-        status_callback("AI sedang menyusun transkrip wawancara ke Bahasa Indonesia...")
+        if language_code == "auto":
+            status_callback("AI sedang mendeteksi bahasa dan menyusun transkrip verbatim...")
+        else:
+            status_callback(f"AI sedang menyusun transkrip verbatim dalam {lang_desc}...")
+
+    if language_code == "auto":
+        instruction_lang = (
+            "ke dalam bahasa asli yang dituturkan oleh narasumber dalam rekaman "
+            "(deteksi otomatis bahasa ucapan asli, pertahankan bahasa aslinya secara verbatim tanpa menerjemahkan ke bahasa lain)"
+        )
+    else:
+        instruction_lang = (
+            f"ke dalam {lang_desc} sesuai ucapan asli narasumber "
+            f"(pertahankan bahasa aslinya secara verbatim, JANGAN menerjemahkan ke bahasa lain)"
+        )
 
     prompt = (
         f"Judul Wawancara: {title}\n\n"
-        "Tolong transkripsikan rekaman wawancara audio ini ke dalam Bahasa Indonesia secara akurat, utuh, mengalir, dan rapi.\n\n"
+        f"Tolong transkripsikan rekaman wawancara audio ini {instruction_lang} secara akurat, utuh, mengalir, dan rapi.\n\n"
         "Panduan format transkripsi:\n"
-        "1. Tuliskan hasil transkrip secara bersih dalam bentuk paragraf-paragraf dialog yang mengalir alami dan nyaman dibaca.\n"
-        "2. JANGAN sertakan penanda waktu atau timestamp sama sekali (jangan ada format [HH:MM:SS] atau penanda waktu lainnya).\n"
-        "3. Tuliskan kalimat demi kalimat secara lengkap sesuai ucapan narasumber dalam Bahasa Indonesia yang baik tanpa mengubah arti atau memotong perkataan asli.\n"
-        "4. Jangan berikan kalimat pembuka, pengantar, atau penutup AI (misalnya 'Berikut adalah transkrip...'). Langsung mulai dari isi transkrip wawancara."
+        "1. Tuliskan hasil transkrip secara bersih dalam bentuk paragraf-paragraf dialog yang mengalir alami dan nyaman dibaca dalam BAHASA ASLINYA (Verbatim Original).\n"
+        "2. JANGAN menerjemahkan ucapan ke bahasa lain (misal jika rekaman Arab tetap tulis dalam aksara Arab/Hijaiyah, Mandarin tetap dalam aksara Hanzi, Inggris dalam bahasa Inggris, Jerman dalam bahasa Jerman, Spanyol dalam bahasa Spanyol, Indonesia dalam Bahasa Indonesia).\n"
+        "3. JANGAN sertakan penanda waktu atau timestamp sama sekali (jangan ada format [HH:MM:SS] atau penanda waktu lainnya).\n"
+        "4. Tuliskan kalimat demi kalimat secara lengkap sesuai ucapan narasumber tanpa mengubah arti atau memotong perkataan asli.\n"
+        "5. Jangan berikan kalimat pembuka, pengantar, atau penutup AI (misalnya 'Berikut adalah transkrip...'). Langsung mulai dari isi transkrip wawancara."
     )
 
     last_error = None
@@ -105,11 +132,12 @@ def transcribe_with_gemini(
 def refine_transcript_with_ai(
     transcript_text: str,
     api_key: str = None,
+    language_code: str = "id",
     status_callback=None
 ) -> str:
     """
     Menyempurnakan hasil transkrip menggunakan Gemini AI:
-    - Memperbaiki salah dengar (typo model ASR) dan ejaan Bahasa Indonesia (PUEBI/EYD).
+    - Memperbaiki salah dengar (typo model ASR) dan ejaan baku sesuai bahasa aslinya.
     - Merapikan tanda baca dan format dialog pembicara.
     - Menjaga integritas konten asli tanpa memotong atau mengarang.
     - Mendukung teks panjang berjam-jam melalui chunking terukur.
@@ -118,6 +146,12 @@ def refine_transcript_with_ai(
         return transcript_text
 
     client = get_gemini_client(api_key)
+    lang_desc = SUPPORTED_LANGUAGES.get(language_code, "Bahasa Indonesia")
+
+    if language_code == "auto":
+        target_info = "bahasa asli teks tersebut (pertahankan bahasa aslinya secara verbatim, JANGAN diterjemahkan ke bahasa lain)"
+    else:
+        target_info = f"{lang_desc} (pertahankan tetap dalam {lang_desc}, JANGAN diterjemahkan ke bahasa lain)"
 
     # Bagi teks per baris untuk membatasi ukuran per request (~200 baris per bagian)
     lines = transcript_text.splitlines()
@@ -138,13 +172,14 @@ def refine_transcript_with_ai(
 
     prompt_instruction = (
         "Kamu adalah editor bahasa dan transkrip profesional. Tugasmu adalah menyempurnakan dan mengoreksi "
-        "hasil transkrip wawancara Bahasa Indonesia berikut.\n\n"
+        f"hasil transkrip wawancara dalam {target_info} berikut.\n\n"
         "Panduan koreksi:\n"
-        "1. Perbaiki salah dengar (ASR misheard), kata typo, dan ejaan kata bahasa Indonesia baku/EYD.\n"
+        "1. Perbaiki salah dengar (ASR misheard), kata typo, dan ejaan kata baku sesuai kaidah bahasa aslinya (misalnya EYD untuk Bahasa Indonesia, grammar baku untuk Inggris/Jerman/Spanyol, tata bahasa Arab/Mandarin yang benar).\n"
         "2. Rapikan tanda baca, huruf kapital, dan jeda antarparagraf percakapan agar enak dibaca seperti dokumen transkrip resmi.\n"
-        "3. JANGAN sertakan penanda waktu atau timestamp [HH:MM:SS]. Jika pada teks masukan ada penanda waktu, hilangkan penanda tersebut sehingga teks bersih.\n"
-        "4. JANGAN menambah karangan baru atau memotong isi percakapan penting (tetap setia pada perkataan asli narasumber).\n"
-        "5. Langsung berikan teks transkrip hasil perbaikan tanpa ada kalimat pengantar atau penutup dari AI.\n\n"
+        "3. Pertahankan bahasa aslinya secara verbatim (JANGAN diterjemahkan ke bahasa lain).\n"
+        "4. JANGAN sertakan penanda waktu atau timestamp [HH:MM:SS]. Jika pada teks masukan ada penanda waktu, hilangkan penanda tersebut sehingga teks bersih.\n"
+        "5. JANGAN menambah karangan baru atau memotong isi percakapan penting (tetap setia pada perkataan asli narasumber).\n"
+        "6. Langsung berikan teks transkrip hasil perbaikan tanpa ada kalimat pengantar atau penutup dari AI.\n\n"
         "Teks yang perlu disempurnakan:\n"
     )
 

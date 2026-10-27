@@ -70,15 +70,33 @@ st.markdown("""
 
 # Header Halaman
 st.markdown('<div class="main-title">Transkrip Wawancara</div>', unsafe_allow_html=True)
-st.markdown('<div class="main-desc">Pengubah rekaman wawancara video dan audio menjadi teks Bahasa Indonesia dalam format DOCX dan TXT.</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-desc">Pengubah rekaman wawancara video dan audio menjadi dokumen teks (Bahasa Indonesia, Inggris, Arab, Mandarin, Jerman, Spanyol) dalam format DOCX dan TXT.</div>', unsafe_allow_html=True)
 
 # Otomatis baca API Key dari api_key.txt atau .env
 saved_api_key = load_saved_api_key()
 has_gpu = is_cuda_available()
 
+LANGUAGE_OPTIONS = {
+    "id": "Bahasa Indonesia (Default)",
+    "en": "Bahasa Inggris (English)",
+    "ar": "Bahasa Arab (العربية)",
+    "zh": "Bahasa Mandarin (中文 / Hanzi)",
+    "de": "Bahasa Jerman (Deutsch)",
+    "es": "Bahasa Spanyol (Español)",
+    "auto": "Deteksi Otomatis (Auto-Detect)"
+}
+
 # Panel Samping (Pengaturan)
 with st.sidebar:
     st.subheader("Pengaturan Transkripsi")
+
+    selected_language = st.selectbox(
+        "Bahasa Rekaman (Audio Language)",
+        options=list(LANGUAGE_OPTIONS.keys()),
+        format_func=lambda x: LANGUAGE_OPTIONS[x],
+        index=0,
+        help="Pilih bahasa audio wawancara. Hasil transkrip akan tetap dalam bahasa aslinya (Verbatim Original) tanpa diterjemahkan."
+    )
 
     engine_choice = st.radio(
         "Metode Transkripsi Utama",
@@ -225,6 +243,7 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
                 audio_path=prepared_audio,
                 api_key=active_api_key,
                 title=final_title,
+                language_code=selected_language,
                 status_callback=update_gemini_status
             )
         else:
@@ -233,10 +252,11 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             def update_whisper_progress(fraction, status_text):
                 progress_bar.progress(fraction, text=f"Transkripsi berjalan... {status_text}")
 
+            whisper_lang = None if selected_language == "auto" else selected_language
             local_res = transcribe_audio(
                 audio_path=prepared_audio,
                 model_size=model_size,
-                language="id",
+                language=whisper_lang,
                 device=selected_hardware,
                 progress_callback=update_whisper_progress
             )
@@ -254,7 +274,8 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             docx_target_path = os.path.join(output_dir, f"{safe_title}.docx")
             txt_target_path = os.path.join(output_dir, f"{safe_title}.txt")
 
-            docx_bytes = build_docx(transcript_result_text, title=final_title, save_path=docx_target_path)
+            lang_label = LANGUAGE_OPTIONS.get(selected_language, "Bahasa Indonesia")
+            docx_bytes = build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
             txt_bytes = save_txt(transcript_result_text, save_path=txt_target_path)
 
             st.session_state["last_transcript"] = transcript_result_text
@@ -264,6 +285,8 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             st.session_state["last_txt"] = txt_bytes
             st.session_state["docx_path"] = docx_target_path
             st.session_state["txt_path"] = txt_target_path
+            st.session_state["last_language"] = selected_language
+            st.session_state["last_lang_label"] = lang_label
 
             # 4. Fitur Penyempurnaan AI Otomatis (jika dicentang)
             if auto_refine and active_api_key:
@@ -275,11 +298,12 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
                     refined = refine_transcript_with_ai(
                         transcript_text=transcript_result_text,
                         api_key=active_api_key,
+                        language_code=selected_language,
                         status_callback=update_refine_status
                     )
                     if refined and refined.strip():
                         transcript_result_text = refined
-                        docx_bytes = build_docx(transcript_result_text, title=final_title, save_path=docx_target_path)
+                        docx_bytes = build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
                         txt_bytes = save_txt(transcript_result_text, save_path=txt_target_path)
                         st.session_state["last_transcript"] = transcript_result_text
                         st.session_state["last_docx"] = docx_bytes
@@ -299,11 +323,13 @@ if "last_transcript" in st.session_state:
     title = st.session_state["last_title"]
     safe_title = sanitize_folder_name(title)
     active_api_key = api_key_input.strip() or saved_api_key
+    cur_lang_label = st.session_state.get("last_lang_label", LANGUAGE_OPTIONS.get(selected_language, "Bahasa Indonesia"))
 
     st.markdown(
         f"""
         <div class="success-box">
             <strong>Transkripsi Selesai dan Berkas Tersimpan</strong><br>
+            Bahasa Rekaman: <strong>{cur_lang_label}</strong><br>
             Folder penyimpanan: <code>{output_dir}</code><br>
             Berkas Word: <code>{safe_title}.docx</code><br>
             Berkas Teks: <code>{safe_title}.txt</code>
@@ -344,14 +370,17 @@ if "last_transcript" in st.session_state:
             if not active_api_key:
                 st.error("Harap isi Gemini API Key di panel kiri atau buat berkas api_key.txt.")
             else:
+                current_lang = st.session_state.get("last_language", selected_language)
+                current_label = st.session_state.get("last_lang_label", LANGUAGE_OPTIONS.get(current_lang, "Bahasa Indonesia"))
                 with st.spinner("AI sedang memeriksa dan menyempurnakan ejaan teks..."):
                     refined_text = refine_transcript_with_ai(
                         transcript_text=st.session_state["last_transcript"],
-                        api_key=active_api_key
+                        api_key=active_api_key,
+                        language_code=current_lang
                     )
                     docx_path = st.session_state["docx_path"]
                     txt_path = st.session_state["txt_path"]
-                    new_docx = build_docx(refined_text, title=title, save_path=docx_path)
+                    new_docx = build_docx(refined_text, title=title, language_label=current_label, save_path=docx_path)
                     new_txt = save_txt(refined_text, save_path=txt_path)
                     st.session_state["last_transcript"] = refined_text
                     st.session_state["last_docx"] = new_docx
@@ -367,9 +396,10 @@ if "last_transcript" in st.session_state:
 
     if edited_text != st.session_state["last_transcript"]:
         if st.button("Simpan Perubahan Manual ke Berkas"):
+            current_label = st.session_state.get("last_lang_label", LANGUAGE_OPTIONS.get(selected_language, "Bahasa Indonesia"))
             docx_path = st.session_state["docx_path"]
             txt_path = st.session_state["txt_path"]
-            new_docx = build_docx(edited_text, title=title, save_path=docx_path)
+            new_docx = build_docx(edited_text, title=title, language_label=current_label, save_path=docx_path)
             new_txt = save_txt(edited_text, save_path=txt_path)
             st.session_state["last_transcript"] = edited_text
             st.session_state["last_docx"] = new_docx

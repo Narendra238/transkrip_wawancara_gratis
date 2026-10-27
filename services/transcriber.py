@@ -53,10 +53,11 @@ def transcribe_audio(
         compute_type = "int8"
 
     def run_whisper(dev, ctype):
+        whisper_lang = None if (language in ("auto", "", None) or not language) else language
         model = WhisperModel(model_size, device=dev, compute_type=ctype)
         segments_iter, info = model.transcribe(
             audio_path,
-            language=language,
+            language=whisper_lang,
             beam_size=5,
             vad_filter=True,
             word_timestamps=False

@@ -4,7 +4,12 @@ from datetime import datetime
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 
-def build_docx(transcript_text: str, title: str = "Transkrip Wawancara", save_path: str = None) -> bytes:
+def build_docx(
+    transcript_text: str,
+    title: str = "Transkrip Wawancara",
+    language_label: str = "Bahasa Indonesia",
+    save_path: str = None
+) -> bytes:
     """
     Membuat berkas Word (.docx) dengan format rapi dan profesional.
     Dapat menyimpan langsung ke disk jika save_path disediakan.
@@ -30,7 +35,7 @@ def build_docx(transcript_text: str, title: str = "Transkrip Wawancara", save_pa
     # Metadata Dokumen
     created_at = datetime.now().strftime("%d/%m/%Y %H:%M WIB")
     meta_p = doc.add_paragraph()
-    meta_run = meta_p.add_run(f"Waktu Transkripsi: {created_at} | Bahasa: Indonesia")
+    meta_run = meta_p.add_run(f"Waktu Transkripsi: {created_at} | Bahasa: {language_label}")
     meta_run.font.name = "Calibri"
     meta_run.font.size = Pt(9.5)
     meta_run.font.italic = True

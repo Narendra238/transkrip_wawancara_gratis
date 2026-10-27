@@ -1,6 +1,6 @@
-# Transkrip Wawancara Lokal
+# Transkrip Wawancara Lokal & Multibahasa
 
-Aplikasi desktop/lokal berbasis Python & Streamlit untuk mentranskripsikan rekaman wawancara (berkas video `.mp4` dan audio `.mp3`) menjadi dokumen Bahasa Indonesia dalam format `.docx` (Microsoft Word) dan `.txt` (Teks).
+Aplikasi desktop/lokal berbasis Python & Streamlit untuk mentranskripsikan rekaman wawancara (berkas video `.mp4` dan audio `.mp3`) menjadi dokumen teks profesional dalam format `.docx` (Microsoft Word) dan `.txt` (Teks). Mendukung Bahasa Indonesia (default), Inggris, Arab, Mandarin, Jerman, Spanyol, dan Deteksi Otomatis secara verbatim asli.
 
 ---
 
