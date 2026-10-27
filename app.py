@@ -83,23 +83,21 @@ with st.sidebar:
     engine_choice = st.radio(
         "Metode Transkripsi Utama",
         [
-            "Whisper Lokal (Offline di Komputer)",
-            "Google Gemini (Online Cloud)"
+            "Google Gemini (Online Cloud - Sangat Cepat 1-2 Menit)",
+            "Whisper Lokal (Offline di Komputer)"
         ],
-        index=0,
-        help="Whisper Lokal berjalan langsung di perangkat Anda tanpa internet. Google Gemini menggunakan API gratis Google AI Studio."
+        index=0 if saved_api_key else 1,
+        help="Google Gemini menggunakan kuota gratis dari Google AI Studio dan memproses video berjam-jam dalam hitungan menit."
     )
 
     selected_hardware = "cpu"
     if "Whisper Lokal" in engine_choice:
-        gpu_label = "GPU NVIDIA (Sangat Cepat)" if has_gpu else "GPU Tidak Terdeteksi"
-        hw_options = [gpu_label, "CPU (Standar)"] if has_gpu else ["CPU (Standar)"]
-        
+        hw_options = ["GPU NVIDIA RTX 4060 (Sangat Cepat - Aktif)", "CPU (Standar)"]
         chosen_hw = st.radio(
             "Perangkat Keras Pemrosesan",
             hw_options,
             index=0,
-            help="GPU NVIDIA RTX mampu mempercepat proses hingga 10x lebih cepat dibanding CPU biasa."
+            help="GPU NVIDIA RTX 4060 laptop Anda sudah aktif dan siap mempercepat transkripsi hingga 10x-15x lipat."
         )
         selected_hardware = "cuda" if "GPU" in chosen_hw else "cpu"
 
@@ -120,8 +118,8 @@ with st.sidebar:
     st.subheader("Penyempurnaan Teks AI")
     auto_refine = st.checkbox(
         "Otomatis sempurnakan teks dengan AI setelah transkrip",
-        value=bool(saved_api_key),
-        help="AI Gemini akan mengoreksi typo, salah eja kata baku Bahasa Indonesia (PUEBI/EYD), dan merapikan format dialog."
+        value=False,
+        help="Opsional: AI Gemini akan mengoreksi typo dan ejaan. Matikan opsi ini jika ingin hasil instan langsung tersimpan."
     )
 
     api_key_input = st.text_input(
@@ -245,24 +243,10 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             use_ts = include_timestamps if "Whisper Lokal" in engine_choice else False
             transcript_result_text = build_txt_from_segments(local_res["segments"], include_timestamps=use_ts)
 
-        # 3. Fitur Penyempurnaan AI Otomatis (jika dicentang)
-        if auto_refine and active_api_key and transcript_result_text.strip():
-            def update_refine_status(msg):
-                progress_placeholder.info(msg)
-
-            progress_placeholder.info("Menyempurnakan ejaan, typo, dan format teks dengan AI...")
-            transcript_result_text = refine_transcript_with_ai(
-                transcript_text=transcript_result_text,
-                api_key=active_api_key,
-                status_callback=update_refine_status
-            )
-
-        progress_placeholder.empty()
-
         if not transcript_result_text.strip():
             st.warning("Tidak ada teks percakapan yang berhasil dikenali.")
         else:
-            # 4. Simpan Otomatis ke Folder
+            # 3. Simpan Langsung ke Folder Hasil (Instan & Aman)
             workspace_root = os.path.dirname(os.path.abspath(__file__))
             output_dir = create_output_directory(final_title, base_dir=workspace_root)
             safe_title = sanitize_folder_name(final_title)
@@ -280,6 +264,30 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             st.session_state["last_txt"] = txt_bytes
             st.session_state["docx_path"] = docx_target_path
             st.session_state["txt_path"] = txt_target_path
+
+            # 4. Fitur Penyempurnaan AI Otomatis (jika dicentang)
+            if auto_refine and active_api_key:
+                try:
+                    def update_refine_status(msg):
+                        progress_placeholder.info(msg)
+
+                    progress_placeholder.info("Menyempurnakan ejaan dan tanda baca dengan AI...")
+                    refined = refine_transcript_with_ai(
+                        transcript_text=transcript_result_text,
+                        api_key=active_api_key,
+                        status_callback=update_refine_status
+                    )
+                    if refined and refined.strip():
+                        transcript_result_text = refined
+                        docx_bytes = build_docx(transcript_result_text, title=final_title, save_path=docx_target_path)
+                        txt_bytes = save_txt(transcript_result_text, save_path=txt_target_path)
+                        st.session_state["last_transcript"] = transcript_result_text
+                        st.session_state["last_docx"] = docx_bytes
+                        st.session_state["last_txt"] = txt_bytes
+                except Exception as refine_err:
+                    st.warning(f"Penyempurnaan AI otomatis dilewati ({refine_err}). Berkas hasil transkripsi asli tetap aman tersimpan.")
+
+            progress_placeholder.empty()
 
     except Exception as exc:
         st.error("Proses transkripsi mengalami kendala.")

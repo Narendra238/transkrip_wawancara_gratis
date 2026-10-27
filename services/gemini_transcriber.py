@@ -27,9 +27,9 @@ def get_gemini_client(api_key: str = None) -> genai.Client:
     key = (api_key or load_saved_api_key()).strip()
     if not key:
         raise ValueError("API Key Gemini belum diisi. Masukkan API key di antarmuka atau di berkas api_key.txt.")
-    return genai.Client(api_key=key)
+    return genai.Client(api_key=key, http_options=types.HttpOptions(timeout=20.0))
 
-PREFERRED_MODELS = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"]
+PREFERRED_MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash"]
 
 def transcribe_with_gemini(
     audio_path: str,

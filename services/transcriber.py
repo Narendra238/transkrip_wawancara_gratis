@@ -17,7 +17,7 @@ def _safe_av_open(*args, **kwargs):
 av.open = _safe_av_open
 
 def is_cuda_available() -> bool:
-    """Mengecek apakah kartu grafis NVIDIA CUDA tersedia di sistem."""
+    """Mengecek apakah kartu grafis NVIDIA dan runtime CUDA terdeteksi."""
     try:
         return ctranslate2.get_cuda_device_count() > 0
     except Exception:
@@ -38,9 +38,9 @@ def transcribe_audio(
     progress_callback=None
 ):
     """
-    Transkripsi audio secara lokal menggunakan faster-whisper.
-    Mendukung akselerasi GPU NVIDIA (CUDA float16) dan CPU (int8).
-    Progress bar dihitung berdasarkan durasi nyata audio, tidak akan stuck di 95%.
+    Transkripsi audio lokal menggunakan faster-whisper.
+    Jika GPU dipilih namun file runtime CUDA (cublas64_12.dll) belum ada di Windows,
+    sistem akan secara otomatis dan aman beralih ke CPU tanpa memunculkan galat crash.
     """
     selected_device = "cpu"
     compute_type = "int8"
@@ -52,40 +52,50 @@ def transcribe_audio(
         selected_device = "cpu"
         compute_type = "int8"
 
-    # Inisialisasi model
-    model = WhisperModel(model_size, device=selected_device, compute_type=compute_type)
+    def run_whisper(dev, ctype):
+        model = WhisperModel(model_size, device=dev, compute_type=ctype)
+        segments_iter, info = model.transcribe(
+            audio_path,
+            language=language,
+            beam_size=5,
+            vad_filter=True,
+            word_timestamps=False
+        )
+        total_duration = getattr(info, "duration", 0.0) or 0.0
+        segments = []
 
-    segments_iter, info = model.transcribe(
-        audio_path,
-        language=language,
-        beam_size=5,
-        vad_filter=True,
-        word_timestamps=False
-    )
+        for segment in segments_iter:
+            seg_data = {
+                "start": float(segment.start),
+                "end": float(segment.end),
+                "text": segment.text.strip()
+            }
+            segments.append(seg_data)
 
-    total_duration = getattr(info, "duration", 0.0) or 0.0
+            if progress_callback:
+                if total_duration > 0:
+                    fraction = min(0.99, seg_data["end"] / total_duration)
+                    cur_str = format_hms(seg_data["end"])
+                    tot_str = format_hms(total_duration)
+                    progress_callback(fraction, f"{int(fraction * 100)}% ({cur_str} / {tot_str})")
+                else:
+                    progress_callback(min(0.95, len(segments) / (len(segments) + 30)), f"{len(segments)} segmen")
 
-    segments = []
-    for segment in segments_iter:
-        seg_data = {
-            "start": float(segment.start),
-            "end": float(segment.end),
-            "text": segment.text.strip()
+        return {
+            "segments": segments,
+            "language": getattr(info, "language", None),
+            "duration": total_duration,
+            "device_used": dev
         }
-        segments.append(seg_data)
 
-        if progress_callback:
-            if total_duration > 0:
-                fraction = min(0.99, seg_data["end"] / total_duration)
-                cur_str = format_hms(seg_data["end"])
-                tot_str = format_hms(total_duration)
-                progress_callback(fraction, f"{int(fraction * 100)}% ({cur_str} / {tot_str})")
-            else:
-                progress_callback(min(0.95, len(segments) / (len(segments) + 30)), f"{len(segments)} segmen")
-
-    return {
-        "segments": segments,
-        "language": getattr(info, "language", None),
-        "duration": total_duration,
-        "device_used": selected_device
-    }
+    try:
+        return run_whisper(selected_device, compute_type)
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if selected_device == "cuda" and ("cublas" in err_msg or "cuda" in err_msg or "not found" in err_msg):
+            # Fallback otomatis ke CPU
+            if progress_callback:
+                progress_callback(0.01, "Pustaka CUDA cublas belum terpasang di Windows, beralih otomatis ke CPU...")
+            return run_whisper("cpu", "int8")
+        else:
+            raise exc
