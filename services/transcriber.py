@@ -3,15 +3,16 @@ import av
 import ctranslate2
 from faster_whisper import WhisperModel
 
-# Penanganan kompatibilitas PyAV
-_orig_av_open = av.open
+import av.container
+
+# Penanganan kompatibilitas PyAV (menggunakan av.container.open asli agar tidak terjadi rekursi)
 def _safe_av_open(*args, **kwargs):
     try:
-        return _orig_av_open(*args, **kwargs)
+        return av.container.open(*args, **kwargs)
     except TypeError as e:
         if "metadata_errors" in str(e):
             kwargs.pop("metadata_errors", None)
-            return _orig_av_open(*args, **kwargs)
+            return av.container.open(*args, **kwargs)
         raise
 
 av.open = _safe_av_open

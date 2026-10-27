@@ -1,27 +1,11 @@
 import os
 import tempfile
-import importlib
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
-
-import services.media_processor
-import services.gemini_transcriber
-import services.transcriber
-import services.storage_manager
-import exporters.export_docx
-import exporters.export_txt
-
-# Paksa reload modul agar Streamlit selalu menggunakan kode terbaru dari disk tanpa perlu restart
-try:
-    importlib.reload(services.gemini_transcriber)
-    importlib.reload(services.transcriber)
-    importlib.reload(exporters.export_docx)
-except Exception:
-    pass
 
 from services.media_processor import prepare_audio
 from services.gemini_transcriber import (
