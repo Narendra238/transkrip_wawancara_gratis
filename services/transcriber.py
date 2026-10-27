@@ -35,7 +35,9 @@ def transcribe_audio(
     model_size: str = "base",
     language: str = "id",
     device: str = "auto",
-    progress_callback=None
+    progress_callback=None,
+    *args,
+    **kwargs
 ):
     """
     Transkripsi audio lokal menggunakan faster-whisper.

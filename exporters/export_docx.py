@@ -8,12 +8,18 @@ def build_docx(
     transcript_text: str,
     title: str = "Transkrip Wawancara",
     language_label: str = "Bahasa Indonesia",
-    save_path: str = None
+    save_path: str = None,
+    **kwargs
 ) -> bytes:
     """
     Membuat berkas Word (.docx) dengan format rapi dan profesional.
     Dapat menyimpan langsung ke disk jika save_path disediakan.
+    Mendukung kwargs fleksibel untuk kompatibilitas penuh.
     """
+    if "save_path" in kwargs:
+        save_path = kwargs["save_path"]
+    if "language_label" in kwargs:
+        language_label = kwargs["language_label"]
     doc = Document()
     
     # Pengaturan margin halaman

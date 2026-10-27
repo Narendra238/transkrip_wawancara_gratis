@@ -46,7 +46,9 @@ def transcribe_with_gemini(
     api_key: str = None,
     title: str = "Wawancara",
     language_code: str = "id",
-    status_callback=None
+    status_callback=None,
+    *args,
+    **kwargs
 ) -> str:
     """
     Mentranskripsikan berkas audio menggunakan Gemini File API (Google AI Studio - Free tier).
@@ -133,7 +135,9 @@ def refine_transcript_with_ai(
     transcript_text: str,
     api_key: str = None,
     language_code: str = "id",
-    status_callback=None
+    status_callback=None,
+    *args,
+    **kwargs
 ) -> str:
     """
     Menyempurnakan hasil transkrip menggunakan Gemini AI:

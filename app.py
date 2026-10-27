@@ -1,11 +1,27 @@
 import os
 import tempfile
+import importlib
 from pathlib import Path
 from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
+
+import services.media_processor
+import services.gemini_transcriber
+import services.transcriber
+import services.storage_manager
+import exporters.export_docx
+import exporters.export_txt
+
+# Paksa reload modul agar Streamlit selalu menggunakan kode terbaru dari disk tanpa perlu restart
+try:
+    importlib.reload(services.gemini_transcriber)
+    importlib.reload(services.transcriber)
+    importlib.reload(exporters.export_docx)
+except Exception:
+    pass
 
 from services.media_processor import prepare_audio
 from services.gemini_transcriber import (
@@ -17,6 +33,13 @@ from services.transcriber import transcribe_audio, is_cuda_available
 from services.storage_manager import create_output_directory, sanitize_folder_name, open_folder_in_explorer
 from exporters.export_docx import build_docx
 from exporters.export_txt import build_txt_from_segments, save_txt
+
+def safe_build_docx(transcript_text: str, title: str, language_label: str = "Bahasa Indonesia", save_path: str = None) -> bytes:
+    """Wrapper aman untuk build_docx yang toleran terhadap perbedaan versi modul di RAM."""
+    try:
+        return build_docx(transcript_text, title=title, language_label=language_label, save_path=save_path)
+    except TypeError:
+        return build_docx(transcript_text, title=title, save_path=save_path)
 
 # Konfigurasi Halaman - Minimalis, bersih, tanpa ikon/simbol
 st.set_page_config(
@@ -275,7 +298,7 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
             txt_target_path = os.path.join(output_dir, f"{safe_title}.txt")
 
             lang_label = LANGUAGE_OPTIONS.get(selected_language, "Bahasa Indonesia")
-            docx_bytes = build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
+            docx_bytes = safe_build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
             txt_bytes = save_txt(transcript_result_text, save_path=txt_target_path)
 
             st.session_state["last_transcript"] = transcript_result_text
@@ -303,7 +326,7 @@ if st.button("Mulai Transkripsi", type="primary", disabled=not can_proceed):
                     )
                     if refined and refined.strip():
                         transcript_result_text = refined
-                        docx_bytes = build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
+                        docx_bytes = safe_build_docx(transcript_result_text, title=final_title, language_label=lang_label, save_path=docx_target_path)
                         txt_bytes = save_txt(transcript_result_text, save_path=txt_target_path)
                         st.session_state["last_transcript"] = transcript_result_text
                         st.session_state["last_docx"] = docx_bytes
@@ -380,7 +403,7 @@ if "last_transcript" in st.session_state:
                     )
                     docx_path = st.session_state["docx_path"]
                     txt_path = st.session_state["txt_path"]
-                    new_docx = build_docx(refined_text, title=title, language_label=current_label, save_path=docx_path)
+                    new_docx = safe_build_docx(refined_text, title=title, language_label=current_label, save_path=docx_path)
                     new_txt = save_txt(refined_text, save_path=txt_path)
                     st.session_state["last_transcript"] = refined_text
                     st.session_state["last_docx"] = new_docx
@@ -399,7 +422,7 @@ if "last_transcript" in st.session_state:
             current_label = st.session_state.get("last_lang_label", LANGUAGE_OPTIONS.get(selected_language, "Bahasa Indonesia"))
             docx_path = st.session_state["docx_path"]
             txt_path = st.session_state["txt_path"]
-            new_docx = build_docx(edited_text, title=title, language_label=current_label, save_path=docx_path)
+            new_docx = safe_build_docx(edited_text, title=title, language_label=current_label, save_path=docx_path)
             new_txt = save_txt(edited_text, save_path=txt_path)
             st.session_state["last_transcript"] = edited_text
             st.session_state["last_docx"] = new_docx
