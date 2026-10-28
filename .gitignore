@@ -8,3 +8,5 @@ outputs/
 transkrip/
 .streamlit/
 api_key.txt
+fordeveloper.md
+tests/temp_bench/
