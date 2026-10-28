@@ -11,7 +11,8 @@ from services.media_processor import prepare_audio
 from services.gemini_transcriber import (
     transcribe_with_gemini,
     refine_transcript_with_ai,
-    load_saved_api_key
+    load_saved_api_key,
+    save_api_key
 )
 from services.transcriber import transcribe_audio, is_cuda_available
 from services.storage_manager import create_output_directory, sanitize_folder_name, open_folder_in_explorer
@@ -123,14 +124,22 @@ with st.sidebar:
 
     selected_hardware = "cpu"
     if "Whisper Lokal" in engine_choice:
-        hw_options = ["GPU NVIDIA RTX 4060 (Sangat Cepat - Aktif)", "CPU (Standar)"]
+        if has_gpu:
+            hw_options = ["GPU NVIDIA (Akselerasi CUDA - Aktif)", "CPU (Standar)"]
+            default_hw_idx = 0
+            hw_help = "GPU NVIDIA dengan akselerasi CUDA terdeteksi aktif di komputer ini."
+        else:
+            hw_options = ["CPU (Standar)", "GPU NVIDIA (Tidak Terdeteksi)"]
+            default_hw_idx = 0
+            hw_help = "GPU NVIDIA tidak terdeteksi. Pemrosesan Whisper lokal akan dijalankan menggunakan CPU."
+
         chosen_hw = st.radio(
             "Perangkat Keras Pemrosesan",
             hw_options,
-            index=0,
-            help="GPU NVIDIA RTX 4060 laptop Anda sudah aktif dan siap mempercepat transkripsi hingga 10x-15x lipat."
+            index=default_hw_idx,
+            help=hw_help
         )
-        selected_hardware = "cuda" if "GPU" in chosen_hw else "cpu"
+        selected_hardware = "cuda" if ("GPU" in chosen_hw and "Tidak Terdeteksi" not in chosen_hw) else "cpu"
 
         model_size = st.selectbox(
             "Ukuran Model Whisper",
@@ -160,10 +169,22 @@ with st.sidebar:
         help="API Key otomatis dibaca dari api_key.txt atau .env jika sudah ada."
     )
 
+    col_btn_key, _ = st.columns([1, 1])
+    with col_btn_key:
+        if st.button("Simpan API Key", help="Simpan kunci API ini secara lokal di komputer agar tersimpan permanen."):
+            if api_key_input.strip():
+                if save_api_key(api_key_input.strip()):
+                    st.success("API Key berhasil disimpan permanen.")
+                    st.rerun()
+                else:
+                    st.error("Gagal menyimpan kunci ke berkas lokal.")
+            else:
+                st.warning("Masukkan kunci API terlebih dahulu.")
+
     if saved_api_key:
         st.caption("Kunci API Gemini aktif terdeteksi.")
     else:
-        st.caption("Masukkan API Key gratis dari Google AI Studio jika ingin menggunakan fitur penyempurna ejaan AI.")
+        st.caption("Masukkan API Key gratis dari Google AI Studio jika ingin menggunakan metode Gemini.")
 
     st.markdown("---")
     st.markdown(
@@ -439,7 +460,7 @@ with tab_sus:
         st.markdown("##### 1. Profil Responden")
         p_col1, p_col2 = st.columns(2)
         with p_col1:
-            resp_name = st.text_input("Nama atau Inisial Responden", placeholder="Contoh: Narendra / Responden 1")
+            resp_name = st.text_input("Nama atau Inisial Responden", placeholder="Contoh: Responden 1 / Nama Anda")
         with p_col2:
             resp_role = st.selectbox(
                 "Profesi / Peran Responden",

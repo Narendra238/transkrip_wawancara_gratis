@@ -10,7 +10,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from services.storage_manager import sanitize_folder_name, create_output_directory
 from services.media_processor import VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, get_ffmpeg_binary
-from services.gemini_transcriber import SUPPORTED_LANGUAGES, load_saved_api_key
+from services.gemini_transcriber import SUPPORTED_LANGUAGES, load_saved_api_key, save_api_key
 from services.transcriber import format_hms, is_cuda_available, _safe_av_open
 from services.sus_manager import calculate_sus_score, SUS_QUESTIONS
 from exporters.export_txt import format_timestamp, build_txt_from_segments, save_txt
@@ -136,6 +136,11 @@ class TestGeminiTranscriberConstants(unittest.TestCase):
     def test_load_saved_api_key_callable(self):
         key = load_saved_api_key()
         self.assertIsInstance(key, str)
+
+    def test_save_api_key_empty_guard(self):
+        # Memastikan bahwa string kosong tidak disimpan
+        self.assertFalse(save_api_key(""))
+        self.assertFalse(save_api_key("   "))
 
 class TestSUSCalculation(unittest.TestCase):
     """Pengujian Unit untuk kalkulasi System Usability Scale (SUS)"""

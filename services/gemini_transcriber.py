@@ -23,6 +23,19 @@ def load_saved_api_key() -> str:
 
     return ""
 
+def save_api_key(api_key: str) -> bool:
+    """Menyimpan API Key secara permanen ke file api_key.txt di root direktori."""
+    if not api_key or not api_key.strip():
+        return False
+    root_dir = Path(__file__).parent.parent
+    txt_path = root_dir / "api_key.txt"
+    try:
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(api_key.strip())
+        return True
+    except Exception:
+        return False
+
 def get_gemini_client(api_key: str = None) -> genai.Client:
     key = (api_key or load_saved_api_key()).strip()
     if not key:

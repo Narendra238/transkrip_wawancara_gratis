@@ -1,11 +1,12 @@
 import os
 import re
+import platform
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
 def sanitize_folder_name(name: str) -> str:
-    """Membersihkan karakter ilegal pada nama folder dan berkas Windows."""
+    """Membersihkan karakter ilegal pada nama folder dan berkas (Windows/Linux/macOS)."""
     cleaned = re.sub(r'[\\/*?:"<>|]', "", name).strip()
     cleaned = re.sub(r'\s+', "_", cleaned)
     return cleaned or "Wawancara"
@@ -28,9 +29,20 @@ def create_output_directory(title: str, base_dir: str = None) -> str:
     return target_path
 
 def open_folder_in_explorer(folder_path: str):
-    """Membuka folder hasil transkrip di Windows File Explorer."""
-    if os.path.exists(folder_path):
-        try:
-            os.startfile(folder_path)
-        except Exception:
-            subprocess.Popen(["explorer", os.path.normpath(folder_path)])
+    """Membuka folder hasil transkrip di File Explorer sesuai sistem operasi (Windows/macOS/Linux)."""
+    if not os.path.exists(folder_path):
+        return
+
+    cur_os = platform.system()
+    try:
+        if cur_os == "Windows":
+            try:
+                os.startfile(folder_path)
+            except Exception:
+                subprocess.Popen(["explorer", os.path.normpath(folder_path)])
+        elif cur_os == "Darwin":
+            subprocess.Popen(["open", folder_path])
+        else:
+            subprocess.Popen(["xdg-open", folder_path])
+    except Exception:
+        pass
