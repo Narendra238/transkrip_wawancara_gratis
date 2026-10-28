@@ -113,3 +113,25 @@ Aplikasi telah dilengkapi formulir kuesioner **System Usability Scale (SUS)** st
 - **Jika Deploy di Layanan Cloud Gratis (Streamlit Cloud / Render / Vercel)**:
   - Layanan gratis umumnya hanya menyediakan CPU tanpa GPU.
   - **Solusi**: Pengguna cukup memilih metode **Google Gemini API** yang tetap gratis, super cepat (1–2 menit), diproses di cloud Google, dan tidak memerlukan sewa server GPU berbayar.
+
+---
+
+## Masukan, Saran & Kolaborasi
+
+Proyek ini bersifat terbuka (*open-source*). Kami sangat menyambut baik siapa saja yang ingin memberikan:
+- **Saran & Masukan**: Ide fitur baru atau peningkatan kemudahan penggunaan (*usability*).
+- **Laporan Masalah (*Bug Reports*)**: Menginformasikan jika menemukan kendala atau kegagalan pemrosesan.
+- **Kolaborasi & Kontribusi Kode**: Silakan buka *Issue* atau kirimkan *Pull Request* (PR) di repositori GitHub ini.
+
+Mari berkolaborasi untuk mempermudah para peneliti, mahasiswa, notulis, dan akademisi dalam mengolah transkrip wawancara secara cepat, akurat, dan gratis!
+
+---
+
+## Lisensi (License)
+
+Didistribusikan di bawah naungan **Lisensi MIT** (*MIT License*).
+
+Hak Cipta (c) 2026 **Muhammad Narendra Hawari**.
+
+Anda bebas menggunakan, memodifikasi, menggabungkan, mempublikasikan, dan mendistribusikan salinan perangkat lunak ini untuk keperluan pribadi, riset, maupun komersial dengan tetap menyertakan pemberitahuan hak cipta asli. Lihat berkas [LICENSE](file:///LICENSE) untuk ketentuan lengkapnya.
+
